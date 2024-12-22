@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const rateLimit = require('express-rate-limit'); // Importando o express-rate-limit
 const app = express();
 const port = 3000;
 
@@ -10,10 +11,22 @@ const geminiAPIKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(geminiAPIKey);
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-let cache = {};  // Cache para armazenar traduções
+let cache = {}; // Cache para armazenar traduções
 
 // Middleware para lidar com JSON no corpo da requisição
 app.use(express.json());
+
+// Configuração do rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // Janela de 15 minutos
+  max: 100, // Limite de 100 requisições por IP
+  message: { error: 'Limite de requisições atingido. Tente novamente mais tarde.' }, // Mensagem ao exceder o limite
+  standardHeaders: true, // Retorna informações no cabeçalho `RateLimit-*`
+  legacyHeaders: false, // Desativa os cabeçalhos `X-RateLimit-*`
+});
+
+// Aplicando o middleware de rate limit a todas as rotas
+app.use(limiter);
 
 // Função para gerar conteúdo usando a API Gemini
 async function translateText(text, targetLang) {
@@ -24,12 +37,10 @@ async function translateText(text, targetLang) {
     const translatedText = result.response.text().replace(/\n/g, '').trim();
     return translatedText;
   } catch (error) {
-    console.error("Erro ao traduzir:", error);
+    console.error('Erro ao traduzir:', error);
     throw new Error('Erro ao traduzir o texto');
   }
 }
-
-
 
 // Endpoint para tradução
 app.post('/translate', async (req, res) => {
@@ -41,7 +52,7 @@ app.post('/translate', async (req, res) => {
 
   // Verificar se a tradução já está no cache
   if (cache[text] && cache[text][targetLang]) {
-    console.log("Retornando tradução do cache");
+    console.log('Retornando tradução do cache');
     return res.json({ translatedText: cache[text][targetLang] });
   }
 
