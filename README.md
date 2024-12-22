@@ -1,6 +1,6 @@
 # API de Tradução
 
-Esta é uma API simples para traduzir textos usando o modelo generativo Gemini (Google Generative AI). Ela oferece uma interface RESTful para enviar texto em um idioma e receber a tradução no idioma desejado. A API inclui cache para otimizar desempenho e utiliza limição de requisições para proteger contra abuso.
+Esta é uma API simples para traduzir textos usando o modelo generativo Gemini (Google Generative AI). Ela oferece uma interface RESTful para enviar texto em um idioma e receber a tradução no idioma desejado. A API inclui cache para otimizar desempenho e utiliza limitação de requisições para proteger contra abuso.
 
 ---
 
@@ -146,5 +146,3 @@ curl -X 'POST' \
 
 ## Licença
 Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
-
-
