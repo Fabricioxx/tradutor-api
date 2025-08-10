@@ -1,10 +1,23 @@
+
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const rateLimit = require('express-rate-limit'); // Importando o express-rate-limit
+
+const redis = require('redis');
 const app = express();
 const port = 3000;
+
+// Configuração do Redis
+const redisHost = process.env.REDIS_HOST || 'localhost';
+const redisPort = process.env.REDIS_PORT || 6379;
+const redisClient = redis.createClient({
+  socket: {
+    host: redisHost,
+    port: redisPort
+  }
+});
+redisClient.connect().catch(console.error);
 
 // Substitua com sua chave de API da Gemini
 const geminiAPIKey = process.env.GEMINI_API_KEY;
@@ -50,21 +63,20 @@ app.post('/translate', async (req, res) => {
     return res.status(400).json({ error: 'Texto e idioma de destino são necessários.' });
   }
 
-  // Verificar se a tradução já está no cache
-  if (cache[text] && cache[text][targetLang]) {
-    console.log('Retornando tradução do cache');
-    return res.json({ translatedText: cache[text][targetLang] });
-  }
-
+  // Verificar se a tradução já está no Redis
+  const cacheKey = `translation:${text}:${targetLang}`;
   try {
+    const cachedTranslation = await redisClient.get(cacheKey);
+    if (cachedTranslation) {
+      console.log('Retornando tradução do Redis');
+      return res.json({ translatedText: cachedTranslation });
+    }
+
     // Solicitar tradução da API Gemini
     const translatedText = await translateText(text, targetLang);
 
-    // Armazenar a tradução no cache
-    if (!cache[text]) {
-      cache[text] = {};
-    }
-    cache[text][targetLang] = translatedText;
+    // Armazenar a tradução no Redis (expira em 24h)
+    await redisClient.set(cacheKey, translatedText, { EX: 86400 });
 
     res.json({ translatedText });
   } catch (error) {
